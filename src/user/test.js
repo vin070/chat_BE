@@ -16,10 +16,9 @@ describe("User module", () => {
       email: username,
       phone_no: "+911234567890",
     };
-    const response = await request(app)
+    const { body, statusCode } = await request(app)
       .post("/api/v1/user/create")
       .send(payload);
-    const { body, statusCode } = response;
     expect(statusCode).toBe(200);
     expect(body.data.hasOwnProperty("name")).toBe(true);
     expect(body.data.hasOwnProperty("email")).toBe(true);
@@ -34,10 +33,9 @@ describe("User module", () => {
       username,
       password,
     };
-    const response = await request(app)
+    const { body, statusCode } = await request(app)
       .post("/api/v1/user/login")
       .send(payload);
-    const { body, statusCode } = response;
     expect(statusCode).toBe(200);
     expect(body.data.hasOwnProperty("id")).toBe(true);
     expect(body.data.hasOwnProperty("name")).toBe(true);
@@ -49,6 +47,17 @@ describe("User module", () => {
     user_id = body.data.id;
   });
 
+  it("Login user with wrong credential", async () => {
+    const payload = {
+      username: "vi@gmail.com",
+      password,
+    };
+    const { statusCode } = await request(app)
+      .post("/api/v1/user/login")
+      .send(payload);
+    expect(statusCode).toBe(401);
+  });
+
   it("Update user", async () => {
     const payload = {
       password,
@@ -56,10 +65,9 @@ describe("User module", () => {
       name: "Vineet Kumar",
       phone_no: "+911234567890",
     };
-    const response = await request(app)
+    const { body, statusCode } = await request(app)
       .patch(`/api/v1/user/${user_id}`)
       .send(payload);
-    const { body, statusCode } = response;
     expect(statusCode).toBe(200);
     expect(body.data.hasOwnProperty("name")).toBe(true);
     expect(body.data.hasOwnProperty("email")).toBe(true);
@@ -94,10 +102,9 @@ describe("User module", () => {
     const payload = {
       id: user_id,
     };
-    const response = await request(app)
+    const { statusCode } = await request(app)
       .post("/api/v1/user/logout")
       .send(payload);
-    const { statusCode } = response;
     expect(statusCode).toBe(200);
     id = null;
     username = null;

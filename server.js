@@ -10,20 +10,29 @@ const { addConn, removeConn, clients } = require("./src/connected_client");
 const server = http.createServer(app);
 
 //Websocket
-const ws = new WebSocketServer({ noServer: true, clientTracking: true });
-ws.on("connection", function connection(conn, req) {
-  const { headers } = req;
-  addConn(headers["Authorization"], conn);
+const ws = new WebSocketServer({ server, clientTracking: false });
 
+ws.on("connection", function connection(conn, req) {
+  let id;
   conn.on("message", async function message(data) {
     data = JSON.parse(data);
     try {
       if (data.type == "MESSAGE") {
         await sendMessage(data);
+        conn.send(JSON.stringify({type: 'ACK'}));
       } else if (data.type == "REACTION") {
         await messageReaction(data);
+        conn.send(JSON.stringify({type: 'ACK'}));
+      } else if (data.type === "INIT") {
+        id = data.id;
+        const query = `SELECT * FROM USERS WHERE id='${data["id"]}'`;
+        const { rows } = await queryDatabase(query);
+        if (!rows?.length) {
+          conn.close();
+        } else {
+          addConn(data.id, conn);
+        }
       }
-      conn.send("ACK");
     } catch (e) {
       conn.send(JSON.stringify({ type: "FAILED", error: e }));
     }
@@ -31,30 +40,10 @@ ws.on("connection", function connection(conn, req) {
 
   conn.on("close", () => {
     removeConn(
-      clients[headers["Authorization"]],
-      clients[headers["Authorization"]].length - 1
+      clients[id],
+      clients[id].length - 1
     );
   });
-});
-
-server.on("upgrade", async (request, socket, head) => {
-  const { headers } = request;
-  headers["Authorization"] = "1ea52749-1f3f-4bc3-95bb-0e1e1571bfc5";
-  try {
-    const query = `SELECT * FROM USERS WHERE id='${headers["Authorization"]}'`;
-    const { rows } = await queryDatabase(query);
-    if (!rows?.length) {
-      throw new Error(
-        "User is not authenticated while making socket connection"
-      );
-    }
-    ws.handleUpgrade(request, socket, head, (conn) => {
-      ws.emit("connection", conn, request);
-    });
-  } catch (e) {
-    socket.destroy();
-    return;
-  }
 });
 
 server.listen(port, (_) => {

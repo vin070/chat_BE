@@ -9,25 +9,26 @@ function createGroupTable() {
           name VARCHAR NOT NULL,
           created_at timestamp DEFAULT current_timestamp
           )`;
- return queryDatabase(query);
+  return queryDatabase(query);
 }
 
 //create member table
 function createMemberTable() {
   const query = `CREATE TABLE IF NOT EXISTS members(
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
     group_id uuid references groups(id) DEFAULT NULL,
     member_id uuid NOT NULL references users(id),
     added_by uuid references users(id) DEFAULT NULL, 
     role varchar DEFAULT NULL,
     opponent_id uuid references users(id) DEFAULT NULL
     )`;
- return queryDatabase(query);
+  return queryDatabase(query);
 }
 
 //Create group for chat
 function createGroup(createdBy, name) {
   const query = `INSERT INTO groups(created_by, name) VALUES('${createdBy}', '${name}') RETURNING id`;
- return queryDatabase(query);
+  return queryDatabase(query);
 }
 
 //Add member in group
@@ -36,13 +37,16 @@ function addMemberInGroup(memberID, groupID, addedBy, role, opponentID) {
   if (!groupID) {
     query = `INSERT INTO members (member_id,opponent_id) values('${memberID}', '${opponentID}')`;
   }
- return queryDatabase(query);
+  return queryDatabase(query);
 }
 
 function getGroupList(limit, offset, searchQuery) {
-  const query = `SELECT * from groups 
-                 WHERE name ILIKE '%${searchQuery}%'
-                 ORDER BY name
+  const query = `SELECT groups.id as group_id, groups.name as group_name, groups.created_at, 
+                 users.id as created_by_id, users.name as user_name, users.phone_no, users.email 
+                 from groups  
+                 inner join users on (users.id=groups.created_by)
+                 WHERE  groups.name ILIKE '%${searchQuery}%'
+                 ORDER BY  groups.name
                  LIMIT ${limit} OFFSET ${offset}
                 `;
   return queryDatabase(query);
@@ -54,6 +58,11 @@ function getAllGroupMemberList(groupID) {
   return queryDatabase(query);
 }
 
+function getGroupMemberDetails(groupID, memberID) {
+  const query = `select * from members where group_id='${groupID}' and member_id='${memberID}'`;
+  return queryDatabase(query);
+}
+
 module.exports = {
   createGroup,
   createGroupTable,
@@ -61,4 +70,5 @@ module.exports = {
   addMemberInGroup,
   getGroupList,
   getAllGroupMemberList,
+  getGroupMemberDetails,
 };
